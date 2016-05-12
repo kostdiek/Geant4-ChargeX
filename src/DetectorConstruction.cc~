@@ -1,0 +1,483 @@
+//
+// ********************************************************************
+// * License and Disclaimer                                           *
+// *                                                                  *
+// * The  Geant4 software  is  copyright of the Copyright Holders  of *
+// * the Geant4 Collaboration.  It is provided  under  the terms  and *
+// * conditions of the Geant4 Software License,  included in the file *
+// * LICENSE and available at  http://cern.ch/geant4/license .  These *
+// * include a list of copyright holders.                             *
+// *                                                                  *
+// * Neither the authors of this software system, nor their employing *
+// * institutes,nor the agencies providing financial support for this *
+// * work  make  any representation or  warranty, express or implied, *
+// * regarding  this  software system or assume any liability for its *
+// * use.  Please see the license in the file  LICENSE  and URL above *
+// * for the full disclaimer and the limitation of liability.         *
+// *                                                                  *
+// * This  code  implementation is the result of  the  scientific and *
+// * technical work of the GEANT4 collaboration.                      *
+// * By using,  copying,  modifying or  distributing the software (or *
+// * any work based  on the software)  you  agree  to acknowledge its *
+// * use  in  resulting  scientific  publications,  and indicate your *
+// * acceptance of all terms of the Geant4 Software license.          *
+// ********************************************************************
+//
+/// \file radioactivedecay/rdecay01/src/DetectorConstruction.cc
+/// \brief Implementation of the DetectorConstruction class
+//
+//
+// $Id: DetectorConstruction.cc 68030 2013-03-13 13:51:27Z gcosmo $
+// 
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo...... 
+
+#include "DetectorConstruction.hh"//
+
+#include "G4Material.hh"//
+#include "G4NistManager.hh"//
+
+#include "G4Tubs.hh"
+#include "G4Box.hh"//
+#include "G4Cons.hh"
+#include "G4EllipticalTube.hh"
+#include "G4LogicalVolume.hh"//
+#include "G4PVPlacement.hh"//
+
+#include "G4AutoDelete.hh"
+#include "G4String.hh"
+#include "G4RotationMatrix.hh"
+
+#include "G4GeometryManager.hh"
+#include "G4PhysicalVolumeStore.hh"
+#include "G4LogicalVolumeStore.hh"
+#include "G4SolidStore.hh"
+
+#include "G4SDManager.hh"//
+#include "G4SDNeutralFilter.hh"
+#include "G4PSPassageTrackLength.hh"
+#include "G4MultiFunctionalDetector.hh"//
+#include "G4VPrimitiveScorer.hh"//
+#include "G4PSEnergyDeposit.hh"//
+#include "G4PSTrackLength.hh"//
+#include "G4VSDFilter.hh"
+#include "G4VisAttributes.hh"//
+#include "G4Colour.hh"//
+#include "G4PSFlatSurfaceCurrent.hh"
+#include "G4PSPassageCellCurrent.hh"
+#include "G4SDParticleFilter.hh"
+#include "G4SDKineticEnergyFilter.hh"
+#include "G4PSNofStep.hh"//
+
+#include "G4SystemOfUnits.hh"//
+#include "G4ios.hh"//
+
+
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+DetectorConstruction::DetectorConstruction()
+ :G4VUserDetectorConstruction(),
+  fCheckOverlaps(true)
+{;
+}
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+DetectorConstruction::~DetectorConstruction()
+{;}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+G4VPhysicalVolume* DetectorConstruction::Construct()
+{
+  static const G4double pi = 3.14159265358979323846;
+  static const G4double inch = 2.54*cm;
+  //
+  // define Air and Pyrex
+  //   
+  G4NistManager* NISTman= G4NistManager::Instance();
+  G4Material* fAir   = NISTman->FindOrBuildMaterial("G4_AIR"); 
+  G4Material *fLead = NISTman->FindOrBuildMaterial("G4_Pb");
+  G4Material* fAluminum = NISTman->FindOrBuildMaterial("G4_Al");
+  G4Material* fBeryllium = NISTman->FindOrBuildMaterial("G4_Be");
+  G4Material* fPlastic = NISTman->FindOrBuildMaterial("G4_POLYETHYLENE");
+  
+  //define HCl
+  //
+/*
+  G4double z, a, density;
+  G4String name, symbol;
+  G4int ncomponents, natoms;
+
+  a = 1.0079*g/mole;
+  G4Element* elH = new G4Element(name = "Hydrogen", symbol = "H", z=1., a);
+
+  a = 35.4527*g/mole;
+  G4Element* elCl = new G4Element(name = "Chlorine", symbol = "Cl", z= 17., a);
+ 
+  density = 1.017 *g/cm3; //density of 1 M of HCl acid
+  G4Material* fHCl = new G4Material(name = "Hydrochloric Acid", density, ncomponents = 2);
+  fHCl->AddElement(elH, natoms = 1);
+  fHCl->AddElement(elCl, natoms = 1);
+*/
+
+  // Define "liquid" iron (the density of 6.5 mg of Fe powder in volume of the drop
+  
+  G4double Z, A, Density;
+  Density = 1.553*g/cm3;
+  A = 55.85*g/mole;
+
+  G4Material* ironl = new G4Material("liquidIron", Z=26., A, Density);
+
+
+  //----------------------------------------------------------------------
+  // World
+  //
+  //G4double fWorldSize = 9* cm;
+  G4Box*  
+  worldSolid = new G4Box("World",                          //its name
+                   25*inch,25* inch,25* inch);//its size
+                   
+  G4LogicalVolume*                         
+  worldLogical = new G4LogicalVolume(worldSolid,             //its solid
+                                   fAir,                    //its material
+                                   "World");               //its name
+  G4VPhysicalVolume*                                   
+  fWorldPhys = new G4PVPlacement(0,                        //no rotation
+                                 G4ThreeVector(),          //at (0,0,0)
+                                 worldLogical,               //its logical volume
+                                 "World",                  //its name
+                                 0,                        //its mother  volume
+                                 false,                    //no boolean operation
+                                 0);                       //copy number
+ 
+  //----------------------------------------------------------------------
+  //Iron cylinder - Drop
+  //
+  
+
+  G4double iron_x=4.64*mm;
+  G4double iron_y=5.24*mm;
+  G4double iron_z=0.0546*mm;
+
+/*  G4double iRMin = 0.0 *mm;
+  G4double iRMax = 4.94 *mm;
+  G4double iDz = 0.0546*mm;
+  G4double iSPhi = 0*radian;
+  G4double iDPhi = 2*pi*radian;
+  
+  
+
+   G4Tubs* solidIron= 
+	new G4Tubs("G4_Fe",		//its name
+		     iRMin, 	//its x radius
+		     iRMax, 	//its y radius
+		     iDz,		//half of it's z
+		     iSPhi,
+		     iDPhi);*/
+  G4EllipticalTube* solidIron = 
+	new G4EllipticalTube("G4_Fe",
+			     iron_x,
+			     iron_y,
+			     iron_z);
+		    	
+
+  G4LogicalVolume* logicIron=
+	new G4LogicalVolume(solidIron,		//its solid
+			    ironl,		//its material, 
+			    "IronLV");		//its name
+
+  //
+  //place HCl cylinder in world
+  //
+  //G4RotationMatrix* pRot = new G4RotationMatrix;
+  //pRot->rotateY(0.5 * pi * radian);
+  new G4PVPlacement(0,					//its rotation
+		   G4ThreeVector(0, 0, 0),	//its position, shifted to center the full vial with detector
+		   logicIron,				//its logical volumne
+		   "Iron",				//its name
+		   worldLogical,				//its mother volumne
+		   false,				//no boolean operation
+		   0);					//copy number
+  //---------------------------------------------------------------------
+					     
+  //LEAD!!! 
+  //Plate 1
+  
+  G4Box* plate1solid = new G4Box("Plate1", 2*inch, 4*inch, 16*inch);
+
+  G4LogicalVolume*
+    plate1logical = new G4LogicalVolume(plate1solid, fLead, "Plate1");
+
+  new G4PVPlacement(0 ,
+		   G4ThreeVector(10 *inch, 0, 0),
+		   plate1logical,
+		   "Plate1",
+		   worldLogical,
+		   false,
+		   0);
+
+  //Plate 2
+
+   G4Box* plate2solid = new G4Box("Plate2", 2*inch, 4*inch, 16*inch);
+
+  G4LogicalVolume*
+    plate2logical = new G4LogicalVolume(plate2solid, fLead, "Plate2");
+
+  new G4PVPlacement(0 ,
+		   G4ThreeVector(-10 *inch, 0, 0),
+		   plate2logical,
+		   "Plate2",
+		   worldLogical,
+		   false,
+		   0);
+
+  //Plate 3
+
+   G4Box* plate3solid = new G4Box("Plate3", 8*inch, 4*inch, 2*inch);
+
+  G4LogicalVolume*
+    plate3logical = new G4LogicalVolume(plate3solid, fLead, "Plate3");
+
+  new G4PVPlacement(0 ,
+		   G4ThreeVector(0, 0, 14 *inch),
+		   plate3logical,
+		   "Plate3",
+		   worldLogical,
+		   false,
+		   0);
+
+  //Plate 4
+
+   G4Box* plate4solid = new G4Box("Plate4", 8*inch, 4*inch, 2*inch);
+
+  G4LogicalVolume*
+    plate4logical = new G4LogicalVolume(plate4solid, fLead, "Plate4");
+
+  new G4PVPlacement(0 ,
+		   G4ThreeVector(0, 0, -14 *inch),
+		   plate4logical,
+		   "Plate4",
+		   worldLogical,
+		   false,
+		   0);
+
+  //Plate 5
+
+   G4Box* plate5solid = new G4Box("Plate5", 12*inch, 2*inch, 16*inch);
+
+  G4LogicalVolume*
+    plate5logical = new G4LogicalVolume(plate5solid, fLead, "Plate5");
+
+  new G4PVPlacement(0 ,
+		   G4ThreeVector(0, 6.25 *inch, 0),
+		   plate5logical,
+		   "Plate5",
+		   worldLogical,
+		   false,
+		   0);
+
+  //Plate 6
+
+   G4Box* plate6solid = new G4Box("Plate6", 12*inch, 2*inch, 16*inch);
+
+  G4LogicalVolume*
+    plate6logical = new G4LogicalVolume(plate6solid, fLead, "Plate6");
+
+  new G4PVPlacement(0 ,
+		   G4ThreeVector(0, -6 *inch, 0),
+		   plate6logical,
+		   "Plate6",
+		   worldLogical,
+		   false,
+		   0);
+//---------------------------------------------------------------------
+		
+  //Aluminum Plate
+
+  G4Box* alsolid = new G4Box("Aluminum", 12 * inch, 0.125*inch, 16*inch);
+  G4LogicalVolume*
+    allogical = new G4LogicalVolume(alsolid, fAluminum, "Aluminum");
+  
+  new G4PVPlacement(0,
+		    G4ThreeVector(0, 4.125*inch, 0),
+		    allogical,
+		    "Aluminum",
+		    worldLogical,
+		    false,
+		    0);
+//---------------------------------------------------------------------
+		
+  //Detectors - or cylinders of aluminum....
+
+  G4Tubs* detector1 = new G4Tubs("Detector1",
+				2.55 *cm,
+				3.5* cm,
+				11.5 *cm,
+				0*radian,
+				2*pi*radian);
+
+  G4LogicalVolume* detector1Logical =
+	new G4LogicalVolume(detector1, fAluminum, "Detector1");
+ 
+  new G4PVPlacement(0,
+		    G4ThreeVector(0, 0, 12.7* cm),
+		    detector1Logical,
+		    "Detector1",
+		    worldLogical,
+		    false,
+		    0);
+  //Detector 1 front - Beryllium
+  G4Tubs* front1 = new G4Tubs("Front1",
+				0 *cm,
+				2.55* cm,
+				.0254 *cm,
+				0*radian,
+				2*pi*radian);
+
+  G4LogicalVolume* front1Logical =
+	new G4LogicalVolume(front1, fBeryllium, "Front1");
+ 
+  new G4PVPlacement(0,
+		    G4ThreeVector(0, 0, 1.2* cm),
+		    front1Logical,
+		    "Front1",
+		    worldLogical,
+		    false,
+		    0);
+  
+
+  //Detector 2
+   G4Tubs* detector2 = new G4Tubs("Detector2",
+				2.55 *cm,
+				3.5* cm,
+				11.5 *cm,
+				0*radian,
+				2*pi*radian);
+
+  G4LogicalVolume* detector2Logical =
+	new G4LogicalVolume(detector2, fAluminum, "Detector2");
+ 
+  new G4PVPlacement(0,
+		    G4ThreeVector(0, 0, -12.7* cm),
+		    detector2Logical,
+		    "Detector2",
+		    worldLogical,
+		    false,
+		    0);
+
+  //Detector 2 front - Beryllium
+  G4Tubs* front2 = new G4Tubs("Front2",
+				0 *cm,
+				2.55* cm,
+				.0254 *cm,
+				0*radian,
+				2*pi*radian);
+
+  G4LogicalVolume* front2Logical =
+	new G4LogicalVolume(front2, fBeryllium, "Front2");
+ 
+  new G4PVPlacement(0,
+		    G4ThreeVector(0, 0, -1.2* cm),
+		    front2Logical,
+		    "Front2",
+		    worldLogical,
+		    false,
+		    0);
+
+  //-------------------------------------------------------------------
+  //Plastic holder
+  //
+
+   G4Box* PlasticHolder = new G4Box("PlasticHolder", 3*inch, 3*inch, .25*inch);
+
+  G4LogicalVolume*
+    PlasticHolderlogical = new G4LogicalVolume(PlasticHolder, fPlastic, "PlasticHolder");
+
+  new G4PVPlacement(0 ,
+		   G4ThreeVector(0, 0, 0),
+		   PlasticHolderlogical,
+		   "PlasticHolder",
+		   worldLogical,
+		   false,
+		   0);
+
+  G4Tubs* Hole = new G4Tubs("Hole",
+				0 *cm,
+				2* cm,
+				.25 *inch,
+				0*radian,
+				2*pi*radian);
+
+  G4LogicalVolume* HoleLogical =
+	new G4LogicalVolume(Hole, fAir, "Hole");
+ 
+  new G4PVPlacement(0,
+		    G4ThreeVector(0, 0, 0),
+		    HoleLogical,
+		    "Front2",
+		    PlasticHolderlogical,
+		    false,
+		    0);
+  G4Box* BottomHolder = new G4Box("BotomHolder", 8*inch, .5*inch, 2*inch);
+
+  G4LogicalVolume*
+    BottomHolderlogical = new G4LogicalVolume(BottomHolder, fPlastic, "BottomHolder");
+
+  new G4PVPlacement(0 ,
+		   G4ThreeVector(0, -3.5* inch, 0),
+		   BottomHolderlogical,
+		   "BottomHolder",
+		   worldLogical,
+		   false,
+		   0);
+
+
+  //
+  //Visualization attributes (This makes the World Invisible)
+  //
+  worldLogical->SetVisAttributes (G4VisAttributes::Invisible);	//world is invisible
+ 
+  G4VisAttributes* simpleBoxVisAtt = new G4VisAttributes(G4Colour::Grey());
+
+  G4VisAttributes* simpleIron = new G4VisAttributes(G4Colour::Red());		//"Iron" or HCl cylinder and cone are colored red
+ 
+  simpleBoxVisAtt->SetVisibility(true);	
+  			
+  logicIron->SetVisAttributes(simpleIron); 					//Iron or HCl is red  
+  plate1logical->SetVisAttributes(new G4VisAttributes(G4Colour::Blue()));
+  plate2logical->SetVisAttributes(new G4VisAttributes(G4Colour::Blue()));
+  plate3logical->SetVisAttributes(new G4VisAttributes(G4Colour::Blue()));
+  plate4logical->SetVisAttributes(new G4VisAttributes(G4Colour::Blue()));
+  plate5logical->SetVisAttributes(new G4VisAttributes(G4Colour::Blue()));
+  plate6logical->SetVisAttributes(new G4VisAttributes(G4Colour::Blue()));
+  allogical->SetVisAttributes(new G4VisAttributes(G4Colour::Yellow()));
+  
+  detector1Logical->SetVisAttributes(new G4VisAttributes(G4Colour::Cyan())); 
+  detector2Logical->SetVisAttributes(new G4VisAttributes(G4Colour::Cyan()));  
+  front1Logical->SetVisAttributes(new G4VisAttributes(G4Colour::Magenta()));  
+  front2Logical->SetVisAttributes(new G4VisAttributes(G4Colour::Magenta()));  
+  PlasticHolderlogical->SetVisAttributes(new G4VisAttributes(G4Colour::Green()));  
+  HoleLogical->SetVisAttributes(new G4VisAttributes(G4Colour::Brown()));
+  BottomHolderlogical->SetVisAttributes(new G4VisAttributes(G4Colour::Green())); 
+//--------------
+  
+  //
+  //always return the physical World
+  //  
+ 
+  return fWorldPhys;
+ 
+}
+
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
+void DetectorConstruction::ConstructSDandField()
+{;} 
+  
+//....oooOO0OOooo........oooOO0OOooo........oooOO0OOooo........oooOO0OOooo......
+
